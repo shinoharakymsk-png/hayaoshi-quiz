@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ポップ・クイズ！</title>
+    <title>THE QUIZ SHOW PRO</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -38,41 +38,41 @@
 </head>
 <body>
 
-    <!-- 1. ホーム -->
+    <!-- 1. ホーム画面 -->
     <div id="home-screen" class="screen active">
         <h1 style="font-size: 4rem; margin-bottom: 40px; -webkit-text-stroke: 1px #fff;">QUIZ QUIZ!</h1>
-        <button class="mode-btn" onclick="showScreen('login-screen')">さんかする</button>
-        <!-- ここを「しゅさいしゃ」に修正しました -->
-        <button class="mode-btn" onclick="showScreen('admin-screen'); socket.emit('create-code');" style="margin-top:20px;">しゅさいしゃ</button>
+        <button class="mode-btn" onclick="showScreen('login-screen')">参加者</button>
+        <button class="mode-btn" onclick="showScreen('admin-screen'); socket.emit('create-code');" style="margin-top:20px;">主催者</button>
     </div>
 
-    <!-- 2. 参加者ログイン -->
+    <!-- 2. 参加者ログイン画面 -->
     <div id="login-screen" class="screen">
-        <input type="text" id="user-name" placeholder="なまえ">
-        <input type="text" id="room-code" placeholder="4ケタのコード">
-        <button class="mode-btn" onclick="joinGame()">はいる！</button>
+        <input type="text" id="user-name" placeholder="名前を入力">
+        <input type="text" id="room-code" placeholder="4桁のコードを入力">
+        <button class="mode-btn" onclick="joinGame()">入場</button>
     </div>
 
-    <!-- 3. 参加者プレイ -->
+    <!-- 3. 参加者プレイ画面 -->
     <div id="player-screen" class="screen">
-        <div id="player-msg" style="font-size:1.8rem; margin-bottom:20px; font-weight: bold;">まってね</div>
+        <div id="player-msg" style="font-size:1.8rem; margin-bottom:20px; font-weight: bold;">待機中</div>
         <div id="player-winner-name" class="winner-tag" style="display:none; margin-bottom:20px;"></div>
-        <button id="btn">おす！</button>
+        <button id="btn">PUSH!</button>
     </div>
 
-    <!-- 4. 主催者管理 -->
+    <!-- 4. 主催者画面 -->
     <div id="admin-screen" class="screen">
-        <div id="admin-info" style="font-size:1.5rem; font-weight: bold;">さんかコード</div>
+        <div id="admin-info" style="font-size:1.5rem; font-weight: bold;">参加コード</div>
         <div id="display-area" class="big-text">----</div>
         <div id="admin-winner-name" class="winner-tag" style="display:none; font-size:4rem; margin-top:20px;"></div>
         <div id="admin-btns" style="margin-top:30px;">
-            <button class="mode-btn" id="start-btn" onclick="socket.emit('start-game')" style="background: #4CAF50; color: white;">スタート！</button>
+            <button class="mode-btn" id="start-btn" onclick="socket.emit('start-game')" style="background: #4CAF50; color: white;">START!</button>
         </div>
     </div>
 
-    <!-- 判定表示 (まる/ばつ) -->
+    <!-- 判定表示 (○/×) -->
     <div id="result-overlay" class="result-mark" style="display:none;"></div>
 
+    <!-- 音源 -->
     <audio id="sound-push" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_system46.mp3"></audio>
     <audio id="sound-maru" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_onepoint23.mp3"></audio>
     <audio id="sound-batsu" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_onepoint33.mp3"></audio>
@@ -90,7 +90,7 @@
         function joinGame() {
             myName = document.getElementById('user-name').value;
             myCode = document.getElementById('room-code').value;
-            if(!myName || !myCode) return alert("いれてね！");
+            if(!myName || !myCode) return alert("名前とコードを入力してください");
             showScreen('player-screen');
         }
 
@@ -117,7 +117,7 @@
                 document.getElementById('admin-winner-name').style.display = "none";
             } else {
                 document.getElementById('btn').disabled = !data.isStarted;
-                document.getElementById('player-msg').innerText = data.isStarted ? "もんだいです！" : "まってね";
+                document.getElementById('player-msg').innerText = data.isStarted ? "問題です！" : "待機中";
                 document.getElementById('player-winner-name').style.display = "none";
             }
         });
