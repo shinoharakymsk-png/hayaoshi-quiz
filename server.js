@@ -4,35 +4,39 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 const path = require('path');
 
-// フォルダを指定せず、このファイルと同じ場所にあるファイルを表示する設定
 app.use(express.static(__dirname));
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// 早押し判定の変数
-let winner = null;
+// ルーム情報を保存する変数
+let roomData = {
+  code: null,
+  winner: null
+};
 
 io.on('connection', (socket) => {
-  console.log('ユーザーが接続しました');
+  // 接続時に現在の状況を送信
+  socket.emit('init', roomData);
 
-  // 誰かがボタンを押した時
-  socket.on('push', (name) => {
-    if (winner === null) {
-      winner = name;
-      io.emit('winner', winner); // 全員に誰が押したか送る
+  // 主催者がコードを生成
+  socket.on('create-code', () => {
+    roomData.code = Math.floor(1000 + Math.random() * 9000).toString(); // 4桁のランダム数字
+    roomData.winner = null;
+    io.emit('new-room', roomData.code);
+  });
+
+  // 参加者がボタンを押した
+  socket.on('push', (data) => {
+    if (roomData.code && data.code === roomData.code && roomData.winner === null) {
+      roomData.winner = data.name;
+      io.emit('winner', roomData.winner);
     }
   });
 
-  // リセットボタンが押された時
+  // リセット
   socket.on('reset', () => {
-    winner = null;
+    roomData.winner = null;
     io.emit('reset');
   });
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
