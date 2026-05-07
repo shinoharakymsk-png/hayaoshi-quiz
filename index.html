@@ -2,95 +2,96 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>THE QUIZ SHOW PRO</title>
+    <title>THE QUIZ SHOW PRO MAX</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --pop-yellow: #FFEB3B; --pop-pink: #FF4081; --pop-blue: #00BCD4; }
-        body { margin: 0; font-family: 'Helvetica Neue', Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; background: var(--pop-yellow); color: #333; overflow: hidden; }
+        body { margin: 0; font-family: 'Arial Black', sans-serif; background: var(--pop-yellow); color: #333; overflow: hidden; }
         .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
         .active { display: flex; }
 
-        /* ポップなボタン */
-        .mode-btn { 
-            padding: 20px 40px; font-size: 1.5rem; border: 4px solid #333; 
-            background: white; border-radius: 20px; cursor: pointer; box-shadow: 5px 5px 0 #333; transition: 0.1s;
-            font-weight: bold;
-        }
-        .mode-btn:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 #333; }
+        /* スコアランキング表示 */
+        #ranking-box { position: fixed; top: 10px; right: 10px; background: white; border: 3px solid #333; padding: 10px; border-radius: 10px; text-align: left; min-width: 150px; z-index: 100; }
+        .rank-item { font-size: 1.2rem; font-weight: bold; border-bottom: 1px solid #eee; }
 
-        /* 巨大文字 */
+        /* ビジュアルタイマー（ボタンの外周） */
+        .timer-container { position: relative; width: 280px; height: 280px; display: flex; align-items: center; justify-content: center; }
+        #timer-svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); width: 280px; height: 280px; pointer-events: none; }
+        #timer-circle { fill: none; stroke: var(--pop-blue); stroke-width: 15; stroke-dasharray: 816; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
+
+        .mode-btn { padding: 20px 40px; font-size: 1.5rem; border: 4px solid #333; background: white; border-radius: 20px; cursor: pointer; box-shadow: 5px 5px 0 #333; font-weight: bold; }
         .big-text { font-size: 6rem; font-weight: 900; color: #333; text-shadow: 4px 4px 0 #fff; }
-        .result-mark { font-size: 20rem; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; font-weight: bold; z-index: 100; }
+        .result-mark { font-size: 20rem; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; font-weight: bold; z-index: 200; }
 
-        /* 参加者ボタン */
-        #btn { 
-            width: 250px; height: 250px; border-radius: 50%; background: var(--pop-pink);
-            border: 8px solid #333; cursor: pointer; box-shadow: 0 10px 0 #880e4f;
-            font-size: 2.5rem; color: white; font-weight: bold; outline: none;
-        }
-        #btn:disabled { background: #bbb; border-color: #777; box-shadow: none; transform: translateY(10px); color: #666; }
+        #btn { width: 230px; height: 230px; border-radius: 50%; background: var(--pop-pink); border: 8px solid #333; cursor: pointer; box-shadow: 0 10px 0 #880e4f; font-size: 2.5rem; color: white; font-weight: bold; z-index: 10; }
+        #btn:disabled { background: #bbb; border-color: #777; box-shadow: none; transform: translateY(10px); }
 
-        .winner-tag { background: #fff; padding: 15px 30px; border: 4px solid #333; border-radius: 50px; font-size: 2rem; font-weight: bold; color: #333; }
-        
+        .winner-tag { background: #fff; padding: 15px 30px; border: 4px solid #333; border-radius: 50px; font-size: 2.5rem; font-weight: bold; }
         input { padding: 15px; font-size: 1.2rem; border: 3px solid #333; border-radius: 10px; margin-bottom: 10px; width: 80%; max-width: 300px; }
     </style>
 </head>
 <body>
 
-    <!-- 1. ホーム画面 -->
+    <div id="ranking-box" style="display:none;">
+        <div style="font-size:0.8rem; color:#666;">RANKING</div>
+        <div id="ranking-list"></div>
+    </div>
+
     <div id="home-screen" class="screen active">
-        <h1 style="font-size: 4rem; margin-bottom: 40px; -webkit-text-stroke: 1px #fff;">QUIZ QUIZ!</h1>
+        <h1 style="font-size: 4rem;">QUIZ QUIZ!</h1>
         <button class="mode-btn" onclick="showScreen('login-screen')">参加者</button>
         <button class="mode-btn" onclick="showScreen('admin-screen'); socket.emit('create-code');" style="margin-top:20px;">主催者</button>
     </div>
 
-    <!-- 2. 参加者ログイン画面 -->
     <div id="login-screen" class="screen">
-        <input type="text" id="user-name" placeholder="名前を入力">
-        <input type="text" id="room-code" placeholder="4桁のコードを入力">
+        <input type="text" id="user-name" placeholder="氏名入力">
+        <input type="text" id="room-code" placeholder="4桁コード入力">
         <button class="mode-btn" onclick="joinGame()">入場</button>
     </div>
 
-    <!-- 3. 参加者プレイ画面 -->
     <div id="player-screen" class="screen">
         <div id="player-msg" style="font-size:1.8rem; margin-bottom:20px; font-weight: bold;">待機中</div>
         <div id="player-winner-name" class="winner-tag" style="display:none; margin-bottom:20px;"></div>
-        <button id="btn">PUSH!</button>
+        <div class="timer-container">
+            <svg id="timer-svg"><circle id="timer-circle" cx="140" cy="140" r="130"></circle></svg>
+            <button id="btn">PUSH!</button>
+        </div>
     </div>
 
-    <!-- 4. 主催者画面 -->
     <div id="admin-screen" class="screen">
         <div id="admin-info" style="font-size:1.5rem; font-weight: bold;">参加コード</div>
         <div id="display-area" class="big-text">----</div>
-        <div id="admin-winner-name" class="winner-tag" style="display:none; font-size:4rem; margin-top:20px;"></div>
+        <div id="admin-winner-name" class="winner-tag" style="display:none; margin-top:20px;"></div>
         <div id="admin-btns" style="margin-top:30px;">
             <button class="mode-btn" id="start-btn" onclick="socket.emit('start-game')" style="background: #4CAF50; color: white;">START!</button>
         </div>
     </div>
 
-    <!-- 判定表示 (○/×) -->
     <div id="result-overlay" class="result-mark" style="display:none;"></div>
 
-    <!-- 音源 -->
     <audio id="sound-push" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_system46.mp3"></audio>
     <audio id="sound-maru" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_onepoint23.mp3"></audio>
     <audio id="sound-batsu" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_onepoint33.mp3"></audio>
+    <audio id="sound-timeout" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_onepoint26.mp3"></audio>
 
     <script>
         const socket = io();
         let myName = "", myCode = "", isAdmin = false;
+        const circle = document.getElementById('timer-circle');
+        const circumference = 130 * 2 * Math.PI;
 
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
             if(id === 'admin-screen') isAdmin = true;
+            document.getElementById('ranking-box').style.display = (id === 'player-screen' || id === 'admin-screen') ? 'block' : 'none';
         }
 
         function joinGame() {
             myName = document.getElementById('user-name').value;
             myCode = document.getElementById('room-code').value;
-            if(!myName || !myCode) return alert("名前とコードを入力してください");
+            if(!myName || !myCode) return;
             showScreen('player-screen');
         }
 
@@ -99,7 +100,6 @@
             socket.emit('push', { name: myName, code: myCode });
         };
 
-        // キーボード操作
         window.addEventListener('keydown', (e) => {
             if(!isAdmin) return;
             if(e.key === 'Enter') socket.emit('judge', 'maru');
@@ -107,17 +107,38 @@
             if(e.key === ' ') socket.emit('reset');
         });
 
+        socket.on('start-timer', (seconds) => {
+            circle.style.strokeDashoffset = 0;
+            let count = 0;
+            const interval = setInterval(() => {
+                count++;
+                const offset = (count / seconds) * circumference;
+                circle.style.strokeDashoffset = offset;
+                if(count >= seconds) {
+                    clearInterval(interval);
+                    if(!document.getElementById('btn').disabled) {
+                        document.getElementById('sound-timeout').play();
+                        document.getElementById('player-msg').innerText = "TIME UP!";
+                        document.getElementById('btn').disabled = true;
+                    }
+                }
+            }, 1000);
+            socket.once('winner', () => clearInterval(interval));
+            socket.once('status-update', () => { clearInterval(interval); circle.style.strokeDashoffset = 0; });
+        });
+
         socket.on('status-update', (data) => {
-            const overlay = document.getElementById('result-overlay');
-            overlay.style.display = "none";
-            
+            document.getElementById('result-overlay').style.display = "none";
+            updateRanking(data.scores);
             if(isAdmin) {
+                document.getElementById('admin-info').style.visibility = data.isStarted ? "hidden" : "visible";
+                document.getElementById('display-area').style.display = "block";
                 document.getElementById('display-area').innerText = data.isStarted ? "QUIZ QUIZ!" : data.code;
                 document.getElementById('admin-btns').style.display = data.isStarted ? "none" : "block";
                 document.getElementById('admin-winner-name').style.display = "none";
             } else {
                 document.getElementById('btn').disabled = !data.isStarted;
-                document.getElementById('player-msg').innerText = data.isStarted ? "問題です！" : "待機中";
+                document.getElementById('player-msg').innerText = data.isStarted ? "問題開始！" : "待機中";
                 document.getElementById('player-winner-name').style.display = "none";
             }
         });
@@ -126,22 +147,35 @@
             if(isAdmin) {
                 document.getElementById('admin-winner-name').innerText = name;
                 document.getElementById('admin-winner-name').style.display = "block";
+                document.getElementById('display-area').style.display = "none";
             } else {
                 document.getElementById('player-winner-name').innerText = name;
                 document.getElementById('player-winner-name').style.display = "block";
                 document.getElementById('btn').disabled = true;
+                document.getElementById('player-msg').innerText = "回答中...";
             }
         });
 
-        socket.on('judgement', (res) => {
+        socket.on('judgement', (data) => {
             const overlay = document.getElementById('result-overlay');
-            overlay.innerText = res === 'maru' ? '○' : '×';
-            overlay.style.color = res === 'maru' ? '#FF5252' : '#448AFF';
+            overlay.innerText = data.res === 'maru' ? '○' : '×';
+            overlay.style.color = data.res === 'maru' ? '#FF5252' : '#448AFF';
             overlay.style.display = "block";
-            const s = document.getElementById(res === 'maru' ? 'sound-maru' : 'sound-batsu');
-            s.currentTime = 0;
-            s.play();
+            document.getElementById(data.res === 'maru' ? 'sound-maru' : 'sound-batsu').play();
+            updateRanking(data.scores);
         });
+
+        function updateRanking(scores) {
+            const list = document.getElementById('ranking-list');
+            list.innerHTML = "";
+            const sorted = Object.entries(scores || {}).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            sorted.forEach(([name, score], i) => {
+                const div = document.createElement('div');
+                div.className = 'rank-item';
+                div.innerText = `${i+1}位: ${name} (${score}pt)`;
+                list.appendChild(div);
+            });
+        }
     </script>
 </body>
 </html>
