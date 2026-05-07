@@ -9,7 +9,7 @@ let roomData = {
     code: null, 
     winner: null, 
     isStarted: false, 
-    scores: {} // { "名前": 点数 }
+    scores: {} 
 };
 
 io.on('connection', (socket) => {
@@ -27,13 +27,12 @@ io.on('connection', (socket) => {
         roomData.isStarted = true;
         roomData.winner = null;
         io.emit('status-update', roomData);
-        io.emit('start-timer', 10); // 10秒タイマー開始
+        io.emit('start-timer', 10);
     });
 
     socket.on('push', (data) => {
         if (roomData.isStarted && data.code === roomData.code && roomData.winner === null) {
             roomData.winner = data.name;
-            roomData.isStarted = false; // 誰かが押したらタイマー停止
             io.emit('winner', roomData.winner);
         }
     });
@@ -47,8 +46,9 @@ io.on('connection', (socket) => {
 
     socket.on('reset', () => {
         roomData.winner = null;
-        roomData.isStarted = false;
+        // isStartedはtrueのまま維持してQUIZ QUIZ画面をキープ
         io.emit('status-update', roomData);
+        if (roomData.isStarted) io.emit('start-timer', 10);
     });
 });
 
