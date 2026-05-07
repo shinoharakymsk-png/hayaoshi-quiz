@@ -1,52 +1,141 @@
-const express = require('express');
-const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ポップ・クイズ！</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root { --pop-yellow: #FFEB3B; --pop-pink: #FF4081; --pop-blue: #00BCD4; }
+        body { margin: 0; font-family: 'Kosugi Maru', sans-serif; background: var(--pop-yellow); color: #333; overflow: hidden; }
+        .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .active { display: flex; }
 
-app.use(express.static(__dirname));
+        /* ポップなボタン */
+        .mode-btn { 
+            padding: 20px 40px; font-size: 1.5rem; border: 4px solid #333; 
+            background: white; border-radius: 20px; cursor: pointer; box-shadow: 5px 5px 0 #333; transition: 0.1s;
+        }
+        .mode-btn:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 #333; }
 
-let roomData = {
-  code: null,
-  winner: null,
-  isStarted: false,
-  result: null // 'maru' or 'batsu'
-};
+        /* 巨大文字 */
+        .big-text { font-size: 6rem; font-weight: 900; color: #333; -webkit-text-stroke: 2px #fff; }
+        .result-mark { font-size: 15rem; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 
-io.on('connection', (socket) => {
-  socket.emit('status-update', roomData);
+        /* 参加者ボタン */
+        #btn { 
+            width: 250px; height: 250px; border-radius: 50%; background: var(--pop-pink);
+            border: 8px solid #333; cursor: pointer; box-shadow: 0 10px 0 #880e4f;
+            font-size: 2.5rem; color: white; font-weight: bold;
+        }
+        #btn:disabled { background: #bbb; box-shadow: none; transform: translateY(10px); }
 
-  socket.on('create-code', () => {
-    roomData.code = Math.floor(1000 + Math.random() * 9000).toString();
-    roomData.winner = null;
-    roomData.isStarted = false;
-    roomData.result = null;
-    io.emit('status-update', roomData);
-  });
+        .winner-tag { background: white; padding: 10px 20px; border: 3px solid #333; border-radius: 10px; font-size: 1.5rem; }
+    </style>
+</head>
+<body>
 
-  socket.on('start-game', () => {
-    roomData.isStarted = true;
-    io.emit('status-update', roomData);
-  });
+    <!-- 1. ホーム -->
+    <div id="home-screen" class="screen active">
+        <h1 style="font-size: 4rem;">QUIZ QUIZ!</h1>
+        <button class="mode-btn" onclick="showScreen('login-screen')">さんかする</button>
+        <button class="mode-btn" onclick="showScreen('admin-screen'); socket.emit('create-code');" style="margin-top:20px;">しゅさいしゃ</button>
+    </div>
 
-  socket.on('push', (data) => {
-    if (roomData.isStarted && data.code === roomData.code && roomData.winner === null) {
-      roomData.winner = data.name;
-      io.emit('winner', roomData.winner);
-    }
-  });
+    <!-- 2. 参加者ログイン -->
+    <div id="login-screen" class="screen">
+        <input type="text" id="user-name" placeholder="なまえ" style="font-size:1.5rem; padding:10px; margin:10px;">
+        <input type="text" id="room-code" placeholder="4ケタのコード" style="font-size:1.5rem; padding:10px; margin:10px;">
+        <button class="mode-btn" onclick="joinGame()">はいる！</button>
+    </div>
 
-  // 主催者からの判定（まる・ばつ）
-  socket.on('judge', (res) => {
-    roomData.result = res;
-    io.emit('judgement', res);
-  });
+    <!-- 3. 参加者プレイ -->
+    <div id="player-screen" class="screen">
+        <div id="player-msg" style="font-size:1.5rem; margin-bottom:20px;">まつ...</div>
+        <div id="player-winner-name" class="winner-tag" style="display:none; margin-bottom:20px;"></div>
+        <button id="btn">おす！</button>
+    </div>
 
-  socket.on('reset', () => {
-    roomData.winner = null;
-    roomData.result = null;
-    io.emit('status-update', roomData);
-  });
-});
+    <!-- 4. 主催者管理 -->
+    <div id="admin-screen" class="screen">
+        <div id="admin-info" style="font-size:1.5rem;">参加コード</div>
+        <div id="display-area" class="big-text">----</div>
+        <div id="admin-winner-name" class="winner-tag" style="display:none; font-size:3rem; margin-top:20px;"></div>
+        <div id="admin-btns" style="margin-top:30px;">
+            <button class="mode-btn" id="start-btn" onclick="socket.emit('start-game')">スタート！</button>
+        </div>
+    </div>
 
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server running` bits));
+    <!-- 判定表示 (まる/ばつ) -->
+    <div id="result-overlay" class="result-mark" style="display:none;"></div>
+
+    <audio id="sound-push" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_system46.mp3"></audio>
+    <audio id="sound-maru" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_onepoint23.mp3"></audio>
+    <audio id="sound-batsu" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_onepoint33.mp3"></audio>
+
+    <script>
+        const socket = io();
+        let myName = "", myCode = "", isAdmin = false;
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(id === 'admin-screen') isAdmin = true;
+        }
+
+        function joinGame() {
+            myName = document.getElementById('user-name').value;
+            myCode = document.getElementById('room-code').value;
+            if(!myName || !myCode) return;
+            showScreen('player-screen');
+        }
+
+        document.getElementById('btn').onclick = () => {
+            document.getElementById('sound-push').play();
+            socket.emit('push', { name: myName, code: myCode });
+        };
+
+        // キーボード操作 (主催者のみ)
+        window.addEventListener('keydown', (e) => {
+            if(!isAdmin) return;
+            if(e.key === 'Enter') socket.emit('judge', 'maru');
+            if(e.key === 'Backspace' || e.key === 'Delete') socket.emit('judge', 'batsu');
+            if(e.key === ' ') socket.emit('reset');
+        });
+
+        socket.on('status-update', (data) => {
+            const overlay = document.getElementById('result-overlay');
+            overlay.style.display = "none";
+            
+            if(isAdmin) {
+                document.getElementById('display-area').innerText = data.isStarted ? "QUIZ QUIZ!" : data.code;
+                document.getElementById('admin-btns').style.display = data.isStarted ? "none" : "block";
+                document.getElementById('admin-winner-name').style.display = "none";
+            } else {
+                document.getElementById('btn').disabled = !data.isStarted;
+                document.getElementById('player-msg').innerText = data.isStarted ? "もんだいです！" : "まってね";
+                document.getElementById('player-winner-name').style.display = "none";
+            }
+        });
+
+        socket.on('winner', (name) => {
+            if(isAdmin) {
+                document.getElementById('admin-winner-name').innerText = name;
+                document.getElementById('admin-winner-name').style.display = "block";
+            } else {
+                document.getElementById('player-winner-name').innerText = name;
+                document.getElementById('player-winner-name').style.display = "block";
+                document.getElementById('btn').disabled = true;
+            }
+        });
+
+        socket.on('judgement', (res) => {
+            const overlay = document.getElementById('result-overlay');
+            overlay.innerText = res === 'maru' ? '○' : '×';
+            overlay.style.color = res === 'maru' ? '#f44336' : '#2196f3';
+            overlay.style.display = "block";
+            document.getElementById(res === 'maru' ? 'sound-maru' : 'sound-batsu').play();
+        });
+    </script>
+</body>
+</html>
