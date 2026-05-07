@@ -2,103 +2,133 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>早押しクイズPRO</title>
+    <title>THE QUIZ SHOW</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { text-align: center; font-family: sans-serif; background: #fdfdfd; padding-top: 30px; }
-        .container { max-width: 400px; margin: 0 auto; border: 2px solid #eee; padding: 20px; border-radius: 15px; }
-        #status { font-size: 1.2rem; margin: 20px 0; font-weight: bold; min-height: 1.5em; }
+        :root { --main-gold: #d4af37; --bg-dark: #000d1a; }
+        body { margin: 0; font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg-dark); color: white; overflow-x: hidden; }
+        .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .active { display: flex; }
+
+        /* ホーム画面 */
+        h1 { font-size: 3rem; color: var(--main-gold); text-shadow: 0 0 20px rgba(212, 175, 55, 0.5); margin-bottom: 50px; }
+        .mode-btn { width: 250px; padding: 20px; margin: 10px; font-size: 1.5rem; cursor: pointer; border: 2px solid var(--main-gold); background: transparent; color: white; border-radius: 50px; transition: 0.3s; }
+        .mode-btn:hover { background: var(--main-gold); color: black; }
+
+        /* 入力フォーム */
+        input { padding: 15px; font-size: 1.2rem; margin: 10px; border-radius: 10px; border: none; width: 80%; max-width: 300px; }
+        
+        /* 主催者画面：でっかいコード */
+        .big-code { font-size: 8rem; color: var(--main-gold); font-weight: bold; margin: 20px 0; }
+        .winner-display { font-size: 4rem; color: #ff4b00; background: rgba(255,255,255,0.1); width: 100%; padding: 20px; box-sizing: border-box; }
+
+        /* 参加者画面：巨大ボタン */
         #btn { 
-            width: 180px; height: 180px; border-radius: 50%; background: #ff4b00; color: white;
-            font-size: 1.5rem; border: none; cursor: pointer; box-shadow: 0 8px #c93a00; display: none; margin: 0 auto;
+            width: 280px; height: 280px; border-radius: 50%; background: radial-gradient(#ff6666, #cc0000);
+            border: 15px solid #333; cursor: pointer; box-shadow: 0 15px #660000;
+            font-size: 3rem; color: white; font-weight: bold; outline: none;
         }
-        #btn:active { box-shadow: none; transform: translateY(5px); }
-        input { padding: 10px; font-size: 1rem; width: 80%; margin-bottom: 10px; border-radius: 5px; border: 1px solid #ccc; }
-        button.admin { background: #333; color: white; padding: 10px; border: none; margin-top: 20px; cursor: pointer; border-radius: 5px; }
-        .hidden { display: none; }
+        #btn:active { box-shadow: none; transform: translateY(10px); }
+        #btn:disabled { background: #333; border-color: #222; box-shadow: none; color: #555; transform: none; cursor: default; }
+
+        .admin-controls { position: fixed; bottom: 20px; display: flex; gap: 10px; }
+        .admin-btn { padding: 10px 20px; background: #333; color: white; border: 1px solid var(--main-gold); border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>早押しボタン</h2>
-    
-    <!-- 入力画面 -->
-    <div id="login-area">
-        <input type="text" id="user-name" placeholder="あなたの名前"><br>
-        <input type="text" id="room-code" placeholder="4桁のコードを入力"><br>
-        <button onclick="join()" style="padding: 10px 20px; cursor:pointer;">参加する</button>
+    <!-- 1. ホーム画面 -->
+    <div id="home-screen" class="screen active">
+        <h1>THE QUIZ SHOW</h1>
+        <button class="mode-btn" onclick="showScreen('login-screen')">参加者として入る</button>
+        <button class="mode-btn" onclick="showScreen('admin-screen'); initAdmin();">主催者として開始</button>
     </div>
 
-    <!-- 参加者画面 -->
-    <div id="game-area" class="hidden">
-        <div id="status">主催者のコード生成を待っています...</div>
+    <!-- 2. 参加者ログイン画面 -->
+    <div id="login-screen" class="screen">
+        <h2>エントリー</h2>
+        <input type="text" id="user-name" placeholder="お名前">
+        <input type="text" id="room-code" placeholder="4桁のコード">
+        <button class="mode-btn" onclick="joinGame()">入場する</button>
+    </div>
+
+    <!-- 3. 参加者プレイ画面 -->
+    <div id="player-screen" class="screen">
+        <div id="player-status" style="margin-bottom: 20px; font-size: 1.5rem;">開始を待っています...</div>
         <button id="btn">PUSH!</button>
     </div>
 
-    <hr>
-    <!-- 主催者用 -->
-    <button class="admin" onclick="createCode()">主催者：コード生成</button>
-    <button class="admin" onclick="resetGame()">リセット</button>
-    <p id="admin-view" style="font-weight:bold; color:blue;"></p>
-</div>
+    <!-- 4. 主催者管理画面 -->
+    <div id="admin-screen" class="screen">
+        <div id="admin-status">コードを発行してください</div>
+        <div id="admin-main-area">
+            <div id="display-code" class="big-code">----</div>
+            <div id="display-winner" class="winner-display" style="display:none;"></div>
+        </div>
+        <div class="admin-controls">
+            <button class="admin-btn" onclick="socket.emit('create-code')">コード発行</button>
+            <button class="admin-btn" id="start-btn" onclick="socket.emit('start-game')" style="background: #006600; display:none;">START!</button>
+            <button class="admin-btn" onclick="socket.emit('reset')">次の問題</button>
+        </div>
+    </div>
 
-<!-- 効果音 -->
-<audio id="sound-push" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_system46.mp3"></audio>
-<audio id="sound-win" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_onepoint15.mp3"></audio>
+    <audio id="sound-push" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_system46.mp3"></audio>
+    <audio id="sound-win" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_onepoint15.mp3"></audio>
 
-<script>
-    const socket = io();
-    let currentCode = "";
-    let myName = "";
+    <script>
+        const socket = io();
+        let myName = "";
+        let myCode = "";
 
-    // 主催者：コード生成
-    function createCode() {
-        socket.emit('create-code');
-    }
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
 
-    // 主催者：リセット
-    function resetGame() {
-        socket.emit('reset');
-    }
+        function initAdmin() {
+            socket.emit('create-code');
+        }
 
-    // 参加：ログイン
-    function join() {
-        myName = document.getElementById('user-name').value;
-        const codeInput = document.getElementById('room-code').value;
-        if(!myName || !codeInput) return alert("名前とコードを入れてね");
-        
-        currentCode = codeInput;
-        document.getElementById('login-area').classList.add('hidden');
-        document.getElementById('game-area').classList.remove('hidden');
-        document.getElementById('status').innerText = "コード " + currentCode + " で待機中...";
-        document.getElementById('btn').style.display = "block";
-    }
+        function joinGame() {
+            myName = document.getElementById('user-name').value;
+            myCode = document.getElementById('room-code').value;
+            if(!myName || !myCode) return alert("入力してください");
+            showScreen('player-screen');
+        }
 
-    // ボタン押下
-    document.getElementById('btn').onclick = () => {
-        document.getElementById('sound-push').play();
-        socket.emit('push', { name: myName, code: currentCode });
-    };
+        document.getElementById('btn').onclick = () => {
+            document.getElementById('sound-push').play();
+            socket.emit('push', { name: myName, code: myCode });
+        };
 
-    // サーバーからの通知
-    socket.on('new-room', (code) => {
-        document.getElementById('admin-view').innerText = "現在の参加コード： " + code;
-    });
+        socket.on('status-update', (data) => {
+            // 主催者側の表示
+            if(data.code) {
+                document.getElementById('display-code').innerText = data.code;
+                document.getElementById('start-btn').style.display = data.isStarted ? "none" : "block";
+                document.getElementById('admin-status').innerText = data.isStarted ? "クイズ進行中" : "参加者受付中...";
+            }
+            if(!data.winner) {
+                document.getElementById('display-winner').style.display = "none";
+                document.getElementById('display-code').style.display = "block";
+                document.getElementById('btn').disabled = !data.isStarted;
+                document.getElementById('player-status').innerText = data.isStarted ? "問題です！" : "開始を待っています...";
+            }
+        });
 
-    socket.on('winner', (name) => {
-        document.getElementById('sound-win').play();
-        document.getElementById('status').innerText = name + " さんが押しました！";
-        document.getElementById('status').style.color = "red";
-        document.getElementById('btn').disabled = true;
-    });
+        socket.on('winner', (name) => {
+            document.getElementById('sound-win').play();
+            // 主催者画面
+            document.getElementById('display-code').style.display = "none";
+            const winDisp = document.getElementById('display-winner');
+            winDisp.innerText = name + " さん！";
+            winDisp.style.display = "block";
 
-    socket.on('reset', () => {
-        document.getElementById('status').innerText = "問題です！";
-        document.getElementById('status').style.color = "#333";
-        document.getElementById('btn').disabled = false;
-    });
-</script>
+            // 参加者画面
+            document.getElementById('btn').disabled = true;
+            document.getElementById('player-status').innerText = name + " さんが回答中...";
+        });
+    </script>
 </body>
 </html>
