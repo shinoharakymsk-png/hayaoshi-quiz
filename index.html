@@ -2,85 +2,114 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>THE QUIZ SHOW ULTRA</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THE QUIZ SHOW FLAT</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        :root { --pop-yellow: #FFEB3B; --pop-pink: #FF4081; --pop-blue: #00BCD4; }
-        body { margin: 0; font-family: 'Arial Black', "Hiragino Sans", sans-serif; background: var(--pop-yellow); color: #333; overflow: hidden; }
+        :root { --pop-yellow: #FFEB3B; --pop-pink: #FF4081; --pop-blue: #00BCD4; --dark-grey: #333; }
+        
+        body { 
+            margin: 0; font-family: 'Helvetica Neue', Arial, "Hiragino Sans", sans-serif; 
+            background: var(--pop-yellow); color: var(--dark-grey); 
+            overflow: hidden; touch-action: manipulation;
+        }
+
         .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
         .active { display: flex; }
 
-        /* ランキング */
-        #ranking-box { position: fixed; top: 20px; left: 20px; background: white; border: 5px solid #333; padding: 20px; border-radius: 15px; text-align: left; min-width: 250px; z-index: 100; }
-        .rank-item { font-size: 1.8rem; font-weight: 900; border-bottom: 2px solid #333; margin-bottom: 5px; }
+        /* ランキング：フラット化 */
+        #ranking-box { 
+            position: fixed; top: 10px; left: 10px; background: white; 
+            border: 4px solid var(--dark-grey); padding: 10px; border-radius: 0; 
+            text-align: left; min-width: 180px; z-index: 100;
+        }
+        .rank-item { font-size: 1.2rem; font-weight: 900; border-bottom: 2px solid var(--dark-grey); padding: 2px 0; }
 
-        /* 判定：画面いっぱいに表示 */
+        /* 判定マーク：画面いっぱいのフラット表示 */
         #result-overlay { 
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
             display: none; align-items: center; justify-content: center; 
-            font-size: 50rem; font-weight: bold; z-index: 500; pointer-events: none;
-            background: rgba(255,255,255,0.2);
+            font-size: 60rem; font-weight: bold; z-index: 1000; pointer-events: none;
+            background: rgba(255,255,255,0.4);
         }
 
-        /* タイマー外周（320pxに固定） */
-        .timer-container { position: relative; width: 320px; height: 320px; display: flex; align-items: center; justify-content: center; }
-        #timer-svg { position: absolute; transform: rotate(-90deg); width: 320px; height: 320px; }
-        #timer-circle { fill: none; stroke: var(--pop-blue); stroke-width: 25; stroke-dasharray: 942; stroke-dashoffset: 0; }
+        /* 中央のタイマー＆ボタンエリア */
+        .main-container { position: relative; width: 90vw; height: 90vw; max-width: 500px; max-height: 500px; display: flex; align-items: center; justify-content: center; }
+        
+        #timer-svg { position: absolute; width: 100%; height: 100%; transform: rotate(-90deg); }
+        #timer-circle { fill: none; stroke: var(--pop-blue); stroke-width: 20; stroke-dasharray: 1000; stroke-dashoffset: 0; }
 
-        /* ボタン */
+        /* ボタン：3D効果なしのフラットデザイン */
         #btn { 
-            width: 240px; height: 240px; border-radius: 50%; background: var(--pop-pink); 
-            border: 10px solid #333; cursor: pointer; font-size: 3rem; color: white; 
-            font-weight: bold; z-index: 10; outline: none; box-shadow: 0 12px 0 #880e4f;
+            width: 80%; height: 80%; border-radius: 50%; 
+            background: var(--pop-pink); border: 12px solid var(--dark-grey);
+            cursor: pointer; font-size: 4rem; color: white; font-weight: bold; 
+            z-index: 10; outline: none; transition: background 0.1s;
+            box-shadow: none; /* 影を完全削除 */
         }
-        #btn:active:not(:disabled) { transform: translateY(8px); box-shadow: 0 4px 0 #880e4f; }
-        #btn:disabled { background: #bbb; box-shadow: none; transform: translateY(12px); border-color: #777; }
+        #btn:active:not(:disabled) { background: #e91e63; transform: scale(0.98); }
+        #btn:disabled { background: #ccc; border-color: #888; color: #666; cursor: default; }
 
-        .big-text { font-size: 7rem; font-weight: 900; }
-        .winner-tag { background: #fff; padding: 20px 40px; border: 6px solid #333; border-radius: 60px; font-size: 5rem; font-weight: 900; z-index: 400; }
-        .mode-btn { padding: 20px 40px; font-size: 2rem; border: 5px solid #333; background: #fff; border-radius: 20px; cursor: pointer; font-weight: bold; }
-        input { padding: 20px; font-size: 1.5rem; border: 4px solid #333; border-radius: 12px; width: 80%; max-width: 400px; margin-bottom: 10px; }
+        /* 文字装飾 */
+        .big-text { font-size: 6rem; font-weight: 900; margin: 0; }
+        .winner-tag { 
+            background: #fff; padding: 10px 30px; border: 6px solid var(--dark-grey); 
+            font-size: 3rem; font-weight: 900; z-index: 500;
+        }
+
+        /* 入力エリア */
+        input { 
+            padding: 20px; font-size: 1.5rem; border: 4px solid var(--dark-grey); 
+            width: 80%; max-width: 400px; margin-bottom: 20px; border-radius: 0;
+        }
+        .mode-btn { 
+            padding: 20px 40px; font-size: 2rem; border: 4px solid var(--dark-grey); 
+            background: #fff; font-weight: bold; cursor: pointer; border-radius: 0;
+        }
     </style>
 </head>
 <body>
 
     <div id="ranking-box" style="display:none;">
-        <div style="background:#333; color:#fff; padding:5px 10px; font-weight:900;">得点順位</div>
+        <div style="font-size:0.8rem; font-weight:900; border-bottom:2px solid #333;">得点順位</div>
         <div id="ranking-list"></div>
     </div>
 
+    <!-- 1. ホーム画面 -->
     <div id="home-screen" class="screen active">
-        <h1 style="font-size: 5rem;">QUIZ QUIZ!</h1>
+        <h1 style="font-size: 4rem;">QUIZ QUIZ!</h1>
         <button class="mode-btn" onclick="showScreen('login-screen')">参加者</button>
         <button class="mode-btn" onclick="showScreen('admin-screen'); socket.emit('create-code');" style="margin-top:20px;">主催者</button>
     </div>
 
+    <!-- 2. ログイン -->
     <div id="login-screen" class="screen">
         <input type="text" id="user-name" placeholder="氏名入力">
         <input type="text" id="room-code" placeholder="4桁コード">
         <button class="mode-btn" onclick="joinGame()">入場</button>
     </div>
 
+    <!-- 3. 参加者メイン（ボタンをど真ん中に） -->
     <div id="player-screen" class="screen">
-        <div id="player-msg" style="font-size:2.5rem; font-weight:900; margin-bottom:20px;">待機中</div>
-        <div id="player-winner-name" class="winner-tag" style="display:none;"></div>
-        <div class="timer-container">
-            <svg id="timer-svg"><circle id="timer-circle" cx="160" cy="160" r="150"></circle></svg>
-            <button id="btn" onclick="pushBtn()">PUSH!</button>
+        <div id="player-msg" style="font-size:2rem; font-weight:900; position: absolute; top: 10%;">待機中</div>
+        <div id="player-winner-name" class="winner-tag" style="display:none; position: absolute; top: 40%;"></div>
+        <div class="main-container">
+            <svg id="timer-svg"><circle id="timer-circle" cx="50%" cy="50%" r="45%"></circle></svg>
+            <button id="btn" onclick="pushBtn()">PUSH</button>
         </div>
     </div>
 
+    <!-- 4. 主催者メイン -->
     <div id="admin-screen" class="screen">
         <div id="admin-info" style="font-size:2rem; font-weight:bold;">参加コード</div>
         <div id="display-area" class="big-text">----</div>
         <div id="admin-winner-name" class="winner-tag" style="display:none;"></div>
         <div id="admin-btns" style="margin-top:40px;">
-            <button class="mode-btn" onclick="socket.emit('start-game')" style="background:#4CAF50; color:#fff;">START!</button>
+            <button class="mode-btn" onclick="socket.emit('start-game')" style="background:#4CAF50; color:#fff;">START</button>
         </div>
     </div>
 
-    <!-- 画面いっぱいの判定マーク -->
+    <!-- 判定：全画面 -->
     <div id="result-overlay"></div>
 
     <audio id="sound-push" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_system46.mp3"></audio>
@@ -92,8 +121,11 @@
         const socket = io();
         let myName = "", myCode = "", isAdmin = false;
         const circle = document.getElementById('timer-circle');
-        const circumference = 150 * 2 * Math.PI;
         let timerInterval;
+
+        // タイマーの外周の長さを計算
+        const r = window.innerWidth * 0.9 * 0.45; 
+        const circumference = 2 * Math.PI * 150; // 固定値で調整
 
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -126,24 +158,24 @@
 
         socket.on('start-timer', (seconds) => {
             clearInterval(timerInterval);
-            circle.style.transition = "none"; // 一旦リセット
+            const circle = document.getElementById('timer-circle');
+            const totalDash = 942; // 固定値
+            circle.style.strokeDasharray = totalDash;
             circle.style.strokeDashoffset = 0;
-            setTimeout(() => {
-                circle.style.transition = "stroke-dashoffset 1s linear";
-                let count = 0;
-                timerInterval = setInterval(() => {
-                    count++;
-                    circle.style.strokeDashoffset = (count / seconds) * circumference;
-                    if(count >= seconds) {
-                        clearInterval(timerInterval);
-                        if(!document.getElementById('btn').disabled) {
-                            document.getElementById('sound-timeout').play();
-                            document.getElementById('player-msg').innerText = "タイムアップ！";
-                            document.getElementById('btn').disabled = true;
-                        }
+            
+            let count = 0;
+            timerInterval = setInterval(() => {
+                count += 0.1;
+                circle.style.strokeDashoffset = (count / seconds) * totalDash;
+                if(count >= seconds) {
+                    clearInterval(timerInterval);
+                    if(!document.getElementById('btn').disabled) {
+                        document.getElementById('sound-timeout').play();
+                        document.getElementById('player-msg').innerText = "TIME UP";
+                        document.getElementById('btn').disabled = true;
                     }
-                }, 1000);
-            }, 50);
+                }
+            }, 100);
         });
 
         socket.on('status-update', (data) => {
@@ -159,9 +191,9 @@
                 document.getElementById('display-area').style.display = "block";
             } else {
                 document.getElementById('btn').disabled = !data.isStarted;
-                document.getElementById('player-msg').innerText = data.isStarted ? "問題開始！" : "待機中";
+                document.getElementById('player-msg').innerText = data.isStarted ? "PUSH!!" : "待機中";
                 document.getElementById('player-winner-name').style.display = "none";
-                circle.style.strokeDashoffset = 0;
+                document.getElementById('timer-circle').style.strokeDashoffset = 0;
             }
         });
 
@@ -195,7 +227,7 @@
             sorted.forEach(([name, score], i) => {
                 const div = document.createElement('div');
                 div.className = 'rank-item';
-                div.innerText = `${i+1}位 ${name}: ${score}点`;
+                div.innerText = `${i+1}位 ${name}:${score}点`;
                 list.appendChild(div);
             });
         }
