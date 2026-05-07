@@ -2,90 +2,103 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>早押しクイズ</title>
+    <title>早押しクイズPRO</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        /* ここにあなたの好きなデザインを書けます */
-        body { 
-            text-align: center; 
-            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
-            background-color: #ffffff; 
-            color: #333;
-            margin-top: 50px;
-        }
-        #status { 
-            font-size: 1.5rem; 
-            margin-bottom: 30px; 
-            min-height: 1.5em;
-        }
+        body { text-align: center; font-family: sans-serif; background: #fdfdfd; padding-top: 30px; }
+        .container { max-width: 400px; margin: 0 auto; border: 2px solid #eee; padding: 20px; border-radius: 15px; }
+        #status { font-size: 1.2rem; margin: 20px 0; font-weight: bold; min-height: 1.5em; }
         #btn { 
-            width: 200px; height: 200px; 
-            background-color: #ff4b00; 
-            color: white; 
-            border: none; 
-            border-radius: 50%; 
-            font-size: 2rem; 
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 8px #c93a00;
+            width: 180px; height: 180px; border-radius: 50%; background: #ff4b00; color: white;
+            font-size: 1.5rem; border: none; cursor: pointer; box-shadow: 0 8px #c93a00; display: none; margin: 0 auto;
         }
-        #btn:active { 
-            box-shadow: none; 
-            transform: translateY(5px); 
-        }
-        #btn:disabled { 
-            background-color: #ccc; 
-            box-shadow: none; 
-        }
-        #reset-btn { 
-            margin-top: 60px; 
-            padding: 10px 20px; 
-            background: #eee; 
-            border: 1px solid #ccc; 
-            border-radius: 5px; 
-            cursor: pointer;
-        }
+        #btn:active { box-shadow: none; transform: translateY(5px); }
+        input { padding: 10px; font-size: 1rem; width: 80%; margin-bottom: 10px; border-radius: 5px; border: 1px solid #ccc; }
+        button.admin { background: #333; color: white; padding: 10px; border: none; margin-top: 20px; cursor: pointer; border-radius: 5px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="status">準備はいいですか？</div>
+<div class="container">
+    <h2>早押しボタン</h2>
     
-    <!-- ボタンの文字を日本語に -->
-    <button id="btn">押す！</button>
-    
-    <br>
-    <button id="reset-btn">次の問題へ（リセット）</button>
+    <!-- 入力画面 -->
+    <div id="login-area">
+        <input type="text" id="user-name" placeholder="あなたの名前"><br>
+        <input type="text" id="room-code" placeholder="4桁のコードを入力"><br>
+        <button onclick="join()" style="padding: 10px 20px; cursor:pointer;">参加する</button>
+    </div>
 
-    <script>
-        const socket = io();
-        const btn = document.getElementById('btn');
-        const status = document.getElementById('status');
-        const resetBtn = document.getElementById('reset-btn');
+    <!-- 参加者画面 -->
+    <div id="game-area" class="hidden">
+        <div id="status">主催者のコード生成を待っています...</div>
+        <button id="btn">PUSH!</button>
+    </div>
 
-        // 名前を日本語にする
-        const myName = "回答者" + Math.floor(Math.random() * 100);
+    <hr>
+    <!-- 主催者用 -->
+    <button class="admin" onclick="createCode()">主催者：コード生成</button>
+    <button class="admin" onclick="resetGame()">リセット</button>
+    <p id="admin-view" style="font-weight:bold; color:blue;"></p>
+</div>
 
-        btn.addEventListener('click', () => {
-            socket.emit('push', myName);
-        });
+<!-- 効果音 -->
+<audio id="sound-push" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_system46.mp3"></audio>
+<audio id="sound-win" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_onepoint15.mp3"></audio>
 
-        resetBtn.addEventListener('click', () => {
-            socket.emit('reset');
-        });
+<script>
+    const socket = io();
+    let currentCode = "";
+    let myName = "";
 
-        socket.on('winner', (name) => {
-            status.innerText = "★ " + name + " さんが正解！";
-            status.style.color = "red";
-            btn.disabled = true;
-        });
+    // 主催者：コード生成
+    function createCode() {
+        socket.emit('create-code');
+    }
 
-        socket.on('reset', () => {
-            status.innerText = "問題です！";
-            status.style.color = "#333";
-            btn.disabled = false;
-        });
-    </script>
+    // 主催者：リセット
+    function resetGame() {
+        socket.emit('reset');
+    }
+
+    // 参加：ログイン
+    function join() {
+        myName = document.getElementById('user-name').value;
+        const codeInput = document.getElementById('room-code').value;
+        if(!myName || !codeInput) return alert("名前とコードを入れてね");
+        
+        currentCode = codeInput;
+        document.getElementById('login-area').classList.add('hidden');
+        document.getElementById('game-area').classList.remove('hidden');
+        document.getElementById('status').innerText = "コード " + currentCode + " で待機中...";
+        document.getElementById('btn').style.display = "block";
+    }
+
+    // ボタン押下
+    document.getElementById('btn').onclick = () => {
+        document.getElementById('sound-push').play();
+        socket.emit('push', { name: myName, code: currentCode });
+    };
+
+    // サーバーからの通知
+    socket.on('new-room', (code) => {
+        document.getElementById('admin-view').innerText = "現在の参加コード： " + code;
+    });
+
+    socket.on('winner', (name) => {
+        document.getElementById('sound-win').play();
+        document.getElementById('status').innerText = name + " さんが押しました！";
+        document.getElementById('status').style.color = "red";
+        document.getElementById('btn').disabled = true;
+    });
+
+    socket.on('reset', () => {
+        document.getElementById('status').innerText = "問題です！";
+        document.getElementById('status').style.color = "#333";
+        document.getElementById('btn').disabled = false;
+    });
+</script>
 </body>
 </html>
