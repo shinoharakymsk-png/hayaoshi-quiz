@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ULTIMATE BUZZER ARENA</title>
+    <style>
+        /* --- 豪華なCSS（ここから） --- */
+        :root {
+            --bg-color: #0a0e17;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --text-color: #fff;
+            --accent-color: #00f2fe; /* 近未来的水色 */
+            --buzzer-red: #ff357a;
+            --buzzer-shadow: #860029;
+            --winner-gold: #ffe066;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Exo 2', 'Helvetica Neue', sans-serif; /* ゲーミングっぽいフォント */
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(0, 242, 254, 0.15) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(79, 172, 254, 0.15) 0px, transparent 50%);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden; /* 背景アニメーション用 */
+        }
+
+        /* 動く背景の線 */
+        body::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 70px, rgba(0, 242, 254, 0.03) 71px, rgba(0, 242, 254, 0.03) 72px);
+            transform: rotate(30deg);
+            animation: backgroundMove 20s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes backgroundMove {
+            0% { transform: rotate(30deg) translateY(0); }
+            100% { transform: rotate(30deg) translateY(72px); }
+        }
+
+        /* 共通カードスタイル（ガラスモーフィズム） */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            transition: all 0.5s ease;
+        }
+
+        /* タイトル */
+        h1, h2, h3 {
+            margin-top: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(to right, #fff, var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 5px var(--accent-color));
+        }
+
+        /* 入力欄 */
+        input {
+            width: 100%;
+            padding: 15px;
+            margin: 15px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            border-color: var(--accent-color);
+            outline: none;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+        }
+
+        /* ボタン共通 */
+        button {
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+
+        /* 入室ボタン */
+        #join-btn {
+            background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+            color: #000;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 18px;
+            width: 100%;
+            margin-top: 20px;
+            box-shadow: 0 5px 20px rgba(0, 242, 254, 0.4);
+        }
+
+        #join-btn:hover {
+            box-shadow: 0 5px 30px rgba(0, 242, 254, 0.6);
+            transform: translateY(-2px);
+        }
+
+        /* メインの早押しボタン（さらに豪華に！） */
+        #buzzer {
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--buzzer-red) 0%, #b3003b 100%);
+            color: white;
+            font-size: 36px;
+            margin: 30px auto;
+            position: relative;
+            box-shadow: 
+                0 0 0 10px rgba(255, 255, 255, 0.05),
+                0 15px 0 var(--buzzer-shadow),
+                0 15px 30px rgba(255, 53, 122, 0.5);
+            display: block;
+        }
+
+        #buzzer::before { /* 光沢感 */
+            content: "";
+            position: absolute;
+            top: 10%; left: 15%;
+            width: 70%; height: 40%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.3), transparent);
+            border-radius: 50% 50% 20% 20%;
+        }
+
+        #buzzer:active:not(:disabled) {
+            transform: translateY(10px);
+            box-shadow: 
+                0 0 0 10px rgba(255, 255, 255, 0.05),
+                0 5px 0 var(--buzzer-shadow),
+                0 5px 20px rgba(255, 53, 122, 0.5);
+        }
+
+        /* 押せなくなった時（他の人が押した時） */
+        #buzzer:disabled {
+            background: radial-gradient(circle, #555 0%, #333 100%);
+            box-shadow: 0 5px 0 #222;
+            color: #888;
+            cursor: not-allowed;
+            filter: grayscale(1);
+            opacity: 0.6;
+        }
+
+        /* 結果表示エリア */
+        #result-card {
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+
+        #result {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ccc;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+
+        /* 勝者発表のアニメーション */
+        .winner-flash {
+            animation: winnerAnim 0.5s ease-out forwards;
+            background: linear-gradient(to right, #fff, var(--winner-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 15px var(--winner-gold)) !important;
+        }
+
+        @keyframes winnerAnim {
+            0% { transform: scale(0.5); opacity: 0; }
+            80% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* サブ情報 */
+        .info-text {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+            margin: 5px 0;
+        }
+
+        .hidden { display: none !important; opacity: 0; transform: scale(0.9); }
+        /* 豪華なCSS（ここまで） --- */
+    </style>
+    <!-- Google Fontsからカッコいいフォントを読み込む -->
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- 入室画面 -->
+    <div class="card" id="setup-area">
+        <h1>Buzzer Arena</h1>
+        <p class="info-text">ENTER ROOM CODE & YOUR NAME</p>
+        <input type="text" id="roomInput" placeholder="ROOM CODE (e.g., 1234)" inputmode="numeric">
+        <input type="text" id="nameInput" placeholder="YOUR NAME" maxlength="10">
+        <button id="join-btn" onclick="joinRoom()">ENTER ARENA</button>
+    </div>
+
+    <!-- 早押し画面 -->
+    <div id="quiz-area" class="hidden">
+        <div class="card" id="result-card">
+            <h3 id="display-room">---</h3>
+            <div id="result">READY?</div>
+        </div>
+        
+        <button id="buzzer">PUSH!!</button>
+        
+        <div class="info-text" id="my-name">---</div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // ジャバスクリプトの中身は前回とほぼ同じですが、
+        // アニメーション用のクラス付け外しを少し追加しています。
+
+        const socket = io();
+        let currentRoom = "";
+        let myName = "";
+
+        function joinRoom() {
+            currentRoom = document.getElementById('roomInput').value;
+            myName = document.getElementById('nameInput').value;
+
+            if (!currentRoom || !myName) {
+                alert("部屋番号と名前を入力してください");
+                return;
+            }
+
+            socket.emit('join_room', { room: currentRoom, name: myName });
+
+            // 画面切り替え（アニメーション用に少し工夫）
+            const setup = document.getElementById('setup-area');
+            const quiz = document.getElementById('quiz-area');
+            
+            setup.classList.add('hidden');
+            setTimeout(() => {
+                setup.style.display = 'none';
+                quiz.style.display = 'block';
+                setTimeout(() => quiz.classList.remove('hidden'), 50);
+            }, 500);
+
+            document.getElementById('display-room').innerText = "ROOM: " + currentRoom;
+            document.getElementById('my-name').innerText = "PLAYER: " + myName;
+        }
+
+        document.getElementById('buzzer').onclick = () => {
+            // 振動機能があるスマホならブブッと鳴らす（豪華演出）
+            if(navigator.vibrate) navigator.vibrate(100);
+            socket.emit('push_buzzer', { room: currentRoom, name: myName });
+        };
+
+        socket.on('winner_announced', (winnerName) => {
+            const resultDisplay = document.getElementById('result');
+            resultDisplay.innerText = winnerName;
+            resultDisplay.classList.add('winner-flash'); // 勝者用アニメーション適用
+            document.getElementById('buzzer').disabled = true;
+        });
+
+        socket.on('reset_all', () => {
+            const resultDisplay = document.getElementById('result');
+            resultDisplay.innerText = "READY?";
+            resultDisplay.classList.remove('winner-flash'); // アニメーション解除
+            document.getElementById('buzzer').disabled = false;
+        });
+    </script>
+</body>
+</html>
