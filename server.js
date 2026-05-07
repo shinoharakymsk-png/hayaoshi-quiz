@@ -6,35 +6,42 @@ const path = require('path');
 
 app.use(express.static(__dirname));
 
-// ルーム情報を保存する変数
 let roomData = {
   code: null,
-  winner: null
+  winner: null,
+  isStarted: false
 };
 
 io.on('connection', (socket) => {
-  // 接続時に現在の状況を送信
   socket.emit('init', roomData);
 
-  // 主催者がコードを生成
+  // 主催者：コード発行
   socket.on('create-code', () => {
-    roomData.code = Math.floor(1000 + Math.random() * 9000).toString(); // 4桁のランダム数字
+    roomData.code = Math.floor(1000 + Math.random() * 9000).toString();
     roomData.winner = null;
-    io.emit('new-room', roomData.code);
+    roomData.isStarted = false;
+    io.emit('status-update', roomData);
   });
 
-  // 参加者がボタンを押した
+  // 主催者：スタート！
+  socket.on('start-game', () => {
+    roomData.isStarted = true;
+    roomData.winner = null;
+    io.emit('status-update', roomData);
+  });
+
+  // 参加者：ボタン押下
   socket.on('push', (data) => {
-    if (roomData.code && data.code === roomData.code && roomData.winner === null) {
+    if (roomData.isStarted && data.code === roomData.code && roomData.winner === null) {
       roomData.winner = data.name;
       io.emit('winner', roomData.winner);
     }
   });
 
-  // リセット
+  // 主催者：リセット（次の問題へ）
   socket.on('reset', () => {
     roomData.winner = null;
-    io.emit('reset');
+    io.emit('status-update', roomData);
   });
 });
 
