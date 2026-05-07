@@ -31,6 +31,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('push', (data) => {
+        // winnerがまだいない時だけ受け付ける
         if (roomData.isStarted && data.code === roomData.code && roomData.winner === null) {
             roomData.winner = data.name;
             io.emit('winner', roomData.winner);
@@ -46,9 +47,9 @@ io.on('connection', (socket) => {
 
     socket.on('reset', () => {
         roomData.winner = null;
-        // isStartedはtrueのまま維持してQUIZ QUIZ画面をキープ
+        roomData.isStarted = true; // クイズ継続状態を維持
         io.emit('status-update', roomData);
-        if (roomData.isStarted) io.emit('start-timer', 10);
+        io.emit('start-timer', 10); // タイマーを最初から再送
     });
 });
 
