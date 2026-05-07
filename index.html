@@ -2,71 +2,102 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>THE QUIZ SHOW FLAT</title>
+    <title>THE QUIZ SHOW ULTRA</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --pop-yellow: #FFEB3B; --pop-pink: #FF4081; --pop-blue: #00BCD4; --dark-grey: #333; }
-        body { margin: 0; font-family: sans-serif; background: var(--pop-yellow); color: var(--dark-grey); overflow: hidden; touch-action: manipulation; }
+        
+        body { 
+            margin: 0; font-family: 'Arial Black', sans-serif; 
+            background: var(--pop-yellow); color: var(--dark-grey); 
+            overflow: hidden; touch-action: manipulation;
+        }
+
         .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
         .active { display: flex; }
 
         /* ランキング */
-        #ranking-box { position: fixed; top: 10px; left: 10px; background: white; border: 4px solid var(--dark-grey); padding: 10px; min-width: 180px; z-index: 100; }
+        #ranking-box { 
+            position: fixed; top: 10px; left: 10px; background: white; 
+            border: 4px solid var(--dark-grey); padding: 10px; z-index: 100;
+        }
         .rank-item { font-size: 1.2rem; font-weight: 900; border-bottom: 2px solid var(--dark-grey); }
 
-        /* 中央のタイマー＆ボタン */
-        .main-container { position: relative; width: 320px; height: 320px; display: flex; align-items: center; justify-content: center; }
-        #timer-svg { position: absolute; width: 320px; height: 320px; transform: rotate(-90deg); pointer-events: none; }
-        #timer-circle { 
-            fill: none; stroke: var(--pop-blue); stroke-width: 20; 
-            stroke-dasharray: 942; stroke-dashoffset: 0; 
-            /* transitionを削除してJSで制御 */
+        /* 判定マーク（全画面） */
+        #result-overlay { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+            display: none; align-items: center; justify-content: center; 
+            font-size: 55rem; font-weight: bold; z-index: 1000; pointer-events: none;
+            background: rgba(255,255,255,0.4);
         }
 
-        #btn { 
-            width: 260px; height: 260px; border-radius: 50%; 
-            background: var(--pop-pink); border: 12px solid var(--dark-grey);
-            cursor: pointer; font-size: 4rem; color: white; font-weight: 900; 
-            z-index: 10; outline: none; box-shadow: none;
+        /* 巨大ボタン＆タイマーコンテナ */
+        .main-container { 
+            position: relative; width: 90vh; height: 90vh; 
+            max-width: 600px; max-height: 600px; 
+            display: flex; align-items: center; justify-content: center; 
         }
-        #btn:active:not(:disabled) { transform: scale(0.95); background: #e91e63; }
+
+        #timer-svg { position: absolute; width: 100%; height: 100%; transform: rotate(-90deg); pointer-events: none; }
+        #timer-circle { 
+            fill: none; stroke: var(--pop-blue); stroke-width: 15; 
+            stroke-dasharray: 1885; stroke-dashoffset: 0; 
+        }
+
+        /* 巨大フラットボタン */
+        #btn { 
+            width: 88%; height: 88%; border-radius: 50%; 
+            background: var(--pop-pink); border: 15px solid var(--dark-grey);
+            cursor: pointer; font-size: 8rem; color: white; font-weight: 900; 
+            z-index: 10; outline: none; box-shadow: none; 
+            display: flex; align-items: center; justify-content: center;
+        }
+        #btn:active:not(:disabled) { transform: scale(0.96); background: #e91e63; }
         #btn:disabled { background: #ccc; border-color: #888; color: #666; }
 
-        .winner-tag { background: #fff; padding: 10px 30px; border: 6px solid var(--dark-grey); font-size: 3rem; font-weight: 900; z-index: 500; }
-        #result-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: none; align-items: center; justify-content: center; font-size: 50rem; font-weight: bold; z-index: 1000; pointer-events: none; background: rgba(255,255,255,0.4); }
-        .mode-btn { padding: 20px 40px; font-size: 2rem; border: 4px solid var(--dark-grey); background: #fff; font-weight: bold; cursor: pointer; }
+        /* 装飾系 */
+        .winner-tag { 
+            background: #fff; padding: 10px 40px; border: 8px solid var(--dark-grey); 
+            font-size: 4rem; font-weight: 900; z-index: 500; position: absolute; top: 40%;
+        }
+        .mode-btn { padding: 20px 40px; font-size: 2rem; border: 5px solid var(--dark-grey); background: #fff; font-weight: 900; cursor: pointer; }
         input { padding: 20px; font-size: 1.5rem; border: 4px solid var(--dark-grey); width: 80%; max-width: 400px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
     <div id="ranking-box" style="display:none;"><div id="ranking-list"></div></div>
+
     <div id="home-screen" class="screen active">
-        <h1 style="font-size: 4rem;">QUIZ QUIZ!</h1>
+        <h1 style="font-size: 4rem;">QUIZ SHOW</h1>
         <button class="mode-btn" onclick="showScreen('login-screen')">参加者</button>
-        <button class="mode-btn" onclick="showScreen('admin-screen'); socket.emit('create-code');">主催者</button>
+        <button class="mode-btn" onclick="showScreen('admin-screen'); socket.emit('create-code');" style="margin-top:20px;">主催者</button>
     </div>
+
     <div id="login-screen" class="screen">
-        <input type="text" id="user-name" placeholder="氏名入力">
+        <input type="text" id="user-name" placeholder="お名前">
         <input type="text" id="room-code" placeholder="4桁コード">
         <button class="mode-btn" onclick="joinGame()">入場</button>
     </div>
+
     <div id="player-screen" class="screen">
-        <div id="player-msg" style="font-size:2rem; font-weight:900; position: absolute; top: 10%;">待機中</div>
-        <div id="player-winner-name" class="winner-tag" style="display:none; position: absolute; top: 40%;"></div>
+        <div id="player-msg" style="font-size:2rem; font-weight:900; position: absolute; top: 5%;">待機中</div>
+        <div id="player-winner-name" class="winner-tag" style="display:none;"></div>
         <div class="main-container">
-            <svg id="timer-svg"><circle id="timer-circle" cx="160" cy="160" r="150"></circle></svg>
+            <svg id="timer-svg"><circle id="timer-circle" cx="50%" cy="50%" r="48%"></circle></svg>
             <button id="btn" onclick="pushBtn()">PUSH</button>
         </div>
     </div>
+
     <div id="admin-screen" class="screen">
-        <div id="display-area" style="font-size:6rem; font-weight:900;">----</div>
+        <div id="display-area" style="font-size:7rem; font-weight:900;">----</div>
         <div id="admin-winner-name" class="winner-tag" style="display:none;"></div>
         <div id="admin-btns" style="margin-top:40px;">
-            <button class="mode-btn" onclick="socket.emit('start-game')" style="background:#4CAF50; color:#fff;">START</button>
+            <button class="mode-btn" onclick="socket.emit('start-game')" style="background:#4CAF50; color:#fff;">START!</button>
         </div>
     </div>
+
     <div id="result-overlay"></div>
 
     <audio id="sound-push" src="https://maoudamashii.jokersounds.com/music/se/mp3/se_maoudamashii_system46.mp3"></audio>
@@ -78,7 +109,7 @@
         const socket = io();
         let myName = "", myCode = "", isAdmin = false;
         const circle = document.getElementById('timer-circle');
-        const totalDash = 942;
+        const totalDash = 1885;
         let timerInterval;
 
         function showScreen(id) {
@@ -96,6 +127,7 @@
         }
 
         function pushBtn() {
+            if(document.getElementById('btn').disabled) return;
             document.getElementById('sound-push').play();
             socket.emit('push', { name: myName, code: myCode });
         }
@@ -104,40 +136,38 @@
             if(!isAdmin) return;
             if(e.key === 'Enter') socket.emit('judge', 'maru');
             if(e.key === 'Backspace' || e.key === 'Delete') socket.emit('judge', 'batsu');
-            if(e.key === ' ') { document.getElementById('result-overlay').style.display = 'none'; socket.emit('reset'); }
+            if(e.key === ' ') {
+                document.getElementById('result-overlay').style.display = 'none';
+                socket.emit('reset');
+            }
         });
 
-        // タイマー制御の心臓部
         socket.on('start-timer', (seconds) => {
             clearInterval(timerInterval);
             let startTime = Date.now();
             let duration = seconds * 1000;
-
             timerInterval = setInterval(() => {
                 let elapsed = Date.now() - startTime;
                 let progress = Math.min(elapsed / duration, 1);
-                
-                // バーを減らす計算
                 circle.style.strokeDashoffset = progress * totalDash;
-
                 if (progress >= 1) {
                     clearInterval(timerInterval);
                     if (!document.getElementById('btn').disabled) {
                         document.getElementById('sound-timeout').play();
-                        document.getElementById('player-msg').innerText = "TIME UP";
                         document.getElementById('btn').disabled = true;
                     }
                 }
-            }, 50); // 0.05秒ごとに更新して滑らかにする
+            }, 30);
         });
 
         socket.on('status-update', (data) => {
             document.getElementById('result-overlay').style.display = "none";
             clearInterval(timerInterval);
-            circle.style.strokeDashoffset = 0; // 完全にリセット
+            circle.style.strokeDashoffset = 0;
             updateRanking(data.scores);
+            
             if(isAdmin) {
-                document.getElementById('display-area').innerText = data.isStarted ? "QUIZ QUIZ!" : data.code;
+                document.getElementById('display-area').innerText = data.isStarted ? "QUIZ!" : data.code;
                 document.getElementById('admin-btns').style.display = data.isStarted ? "none" : "block";
                 document.getElementById('admin-winner-name').style.display = "none";
                 document.getElementById('display-area').style.display = "block";
@@ -158,7 +188,6 @@
                 document.getElementById('player-winner-name').innerText = name;
                 document.getElementById('player-winner-name').style.display = "block";
                 document.getElementById('btn').disabled = true;
-                document.getElementById('player-msg').innerText = "判定中...";
             }
         });
 
