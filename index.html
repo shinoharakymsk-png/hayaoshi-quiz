@@ -7,7 +7,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root { --pop-yellow: #FFEB3B; --pop-pink: #FF4081; --pop-blue: #00BCD4; }
-        body { margin: 0; font-family: 'Kosugi Maru', sans-serif; background: var(--pop-yellow); color: #333; overflow: hidden; }
+        body { margin: 0; font-family: 'Helvetica Neue', Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif; background: var(--pop-yellow); color: #333; overflow: hidden; }
         .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
         .active { display: flex; }
 
@@ -15,54 +15,58 @@
         .mode-btn { 
             padding: 20px 40px; font-size: 1.5rem; border: 4px solid #333; 
             background: white; border-radius: 20px; cursor: pointer; box-shadow: 5px 5px 0 #333; transition: 0.1s;
+            font-weight: bold;
         }
         .mode-btn:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 #333; }
 
         /* 巨大文字 */
-        .big-text { font-size: 6rem; font-weight: 900; color: #333; -webkit-text-stroke: 2px #fff; }
-        .result-mark { font-size: 15rem; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+        .big-text { font-size: 6rem; font-weight: 900; color: #333; text-shadow: 4px 4px 0 #fff; }
+        .result-mark { font-size: 20rem; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; font-weight: bold; z-index: 100; }
 
         /* 参加者ボタン */
         #btn { 
             width: 250px; height: 250px; border-radius: 50%; background: var(--pop-pink);
             border: 8px solid #333; cursor: pointer; box-shadow: 0 10px 0 #880e4f;
-            font-size: 2.5rem; color: white; font-weight: bold;
+            font-size: 2.5rem; color: white; font-weight: bold; outline: none;
         }
-        #btn:disabled { background: #bbb; box-shadow: none; transform: translateY(10px); }
+        #btn:disabled { background: #bbb; border-color: #777; box-shadow: none; transform: translateY(10px); color: #666; }
 
-        .winner-tag { background: white; padding: 10px 20px; border: 3px solid #333; border-radius: 10px; font-size: 1.5rem; }
+        .winner-tag { background: #fff; padding: 15px 30px; border: 4px solid #333; border-radius: 50px; font-size: 2rem; font-weight: bold; color: #333; }
+        
+        input { padding: 15px; font-size: 1.2rem; border: 3px solid #333; border-radius: 10px; margin-bottom: 10px; width: 80%; max-width: 300px; }
     </style>
 </head>
 <body>
 
     <!-- 1. ホーム -->
     <div id="home-screen" class="screen active">
-        <h1 style="font-size: 4rem;">QUIZ QUIZ!</h1>
+        <h1 style="font-size: 4rem; margin-bottom: 40px; -webkit-text-stroke: 1px #fff;">QUIZ QUIZ!</h1>
         <button class="mode-btn" onclick="showScreen('login-screen')">さんかする</button>
+        <!-- ここを「しゅさいしゃ」に修正しました -->
         <button class="mode-btn" onclick="showScreen('admin-screen'); socket.emit('create-code');" style="margin-top:20px;">しゅさいしゃ</button>
     </div>
 
     <!-- 2. 参加者ログイン -->
     <div id="login-screen" class="screen">
-        <input type="text" id="user-name" placeholder="なまえ" style="font-size:1.5rem; padding:10px; margin:10px;">
-        <input type="text" id="room-code" placeholder="4ケタのコード" style="font-size:1.5rem; padding:10px; margin:10px;">
+        <input type="text" id="user-name" placeholder="なまえ">
+        <input type="text" id="room-code" placeholder="4ケタのコード">
         <button class="mode-btn" onclick="joinGame()">はいる！</button>
     </div>
 
     <!-- 3. 参加者プレイ -->
     <div id="player-screen" class="screen">
-        <div id="player-msg" style="font-size:1.5rem; margin-bottom:20px;">まつ...</div>
+        <div id="player-msg" style="font-size:1.8rem; margin-bottom:20px; font-weight: bold;">まってね</div>
         <div id="player-winner-name" class="winner-tag" style="display:none; margin-bottom:20px;"></div>
         <button id="btn">おす！</button>
     </div>
 
     <!-- 4. 主催者管理 -->
     <div id="admin-screen" class="screen">
-        <div id="admin-info" style="font-size:1.5rem;">参加コード</div>
+        <div id="admin-info" style="font-size:1.5rem; font-weight: bold;">さんかコード</div>
         <div id="display-area" class="big-text">----</div>
-        <div id="admin-winner-name" class="winner-tag" style="display:none; font-size:3rem; margin-top:20px;"></div>
+        <div id="admin-winner-name" class="winner-tag" style="display:none; font-size:4rem; margin-top:20px;"></div>
         <div id="admin-btns" style="margin-top:30px;">
-            <button class="mode-btn" id="start-btn" onclick="socket.emit('start-game')">スタート！</button>
+            <button class="mode-btn" id="start-btn" onclick="socket.emit('start-game')" style="background: #4CAF50; color: white;">スタート！</button>
         </div>
     </div>
 
@@ -86,7 +90,7 @@
         function joinGame() {
             myName = document.getElementById('user-name').value;
             myCode = document.getElementById('room-code').value;
-            if(!myName || !myCode) return;
+            if(!myName || !myCode) return alert("いれてね！");
             showScreen('player-screen');
         }
 
@@ -95,7 +99,7 @@
             socket.emit('push', { name: myName, code: myCode });
         };
 
-        // キーボード操作 (主催者のみ)
+        // キーボード操作
         window.addEventListener('keydown', (e) => {
             if(!isAdmin) return;
             if(e.key === 'Enter') socket.emit('judge', 'maru');
@@ -132,9 +136,11 @@
         socket.on('judgement', (res) => {
             const overlay = document.getElementById('result-overlay');
             overlay.innerText = res === 'maru' ? '○' : '×';
-            overlay.style.color = res === 'maru' ? '#f44336' : '#2196f3';
+            overlay.style.color = res === 'maru' ? '#FF5252' : '#448AFF';
             overlay.style.display = "block";
-            document.getElementById(res === 'maru' ? 'sound-maru' : 'sound-batsu').play();
+            const s = document.getElementById(res === 'maru' ? 'sound-maru' : 'sound-batsu');
+            s.currentTime = 0;
+            s.play();
         });
     </script>
 </body>
